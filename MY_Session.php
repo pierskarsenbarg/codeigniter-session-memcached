@@ -770,7 +770,7 @@ class MY_Session extends CI_Session {
 
 
 }
-// END Session Class
+// END MY_Session Class
 
-/* End of file Session.php */
-/* Location: ./system/libraries/Session.php */
+/* End of file MY_Session.php */
+/* Location: ./application/libraries/MY_Session.php */
