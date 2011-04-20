@@ -18,13 +18,13 @@
 /**
  * Session Class
  *
- * @package		CodeIgniter
+ * @package		MY_Session
  * @subpackage	Libraries
  * @category	Sessions
- * @author		ExpressionEngine Dev Team
- * @link		http://codeigniter.com/user_guide/libraries/sessions.html
+ * @author		Piers Karsenbarg
+ * @link		https://github.com/pierskarsenbarg/codeigniter-session-memcached
  */
-class CI_Session {
+class MY_Session extends CI_Session {
 
 	var $sess_encrypt_cookie		= FALSE;
 	var $sess_use_database			= FALSE;
