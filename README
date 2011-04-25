@@ -4,4 +4,4 @@ An extension of the Session class to enable the use of memcached to store sessio
 
 To enable this, copy MY_Session.php to application/libraries and memcached.php to application/config.
 
-Then upadte memcached.php with your settings.
+Then update memcached.php with your settings.
