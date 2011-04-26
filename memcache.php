@@ -12,6 +12,6 @@
 |
 */
 
-$config['session_storage'] = 'memcached';
-$config ['memcached_port'] = '11211';
-$config['memcached_nodes'] = array('127.0.0.1');
+$config['session_storage'] = 'database';
+$config ['memcached_port'] = '';
+$config['memcached_nodes'] = array();
