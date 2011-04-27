@@ -132,10 +132,12 @@ class MY_Session extends CI_Session {
 		// create a new one.  If it does, we'll update it.
 		if ( ! $this->sess_read())
 		{
+                                    log_message('debug','new session needed');
 			$this->sess_create();
 		}
 		else
 		{
+                                        log_message('debug','session needs updating');
 			$this->sess_update();
 		}
 
@@ -198,6 +200,7 @@ class MY_Session extends CI_Session {
 		if ( ! is_array($session) OR ! isset($session['session_id']) OR ! isset($session['ip_address']) OR ! isset($session['user_agent']) OR ! isset($session['last_activity']))
 		{
 			$this->sess_destroy();
+                                                log_message('debug','session not valid and destroyed');
 			return FALSE;
 		}
 
@@ -205,6 +208,7 @@ class MY_Session extends CI_Session {
 		if (($session['last_activity'] + $this->sess_expiration) < $this->now)
 		{
 			$this->sess_destroy();
+                                                log_message('debug','session not current');
 			return FALSE;
 		}
 
@@ -212,6 +216,7 @@ class MY_Session extends CI_Session {
 		if ($this->sess_match_ip == TRUE AND $session['ip_address'] != $this->CI->input->ip_address())
 		{
 			$this->sess_destroy();
+                                                log_message('debug','session IP does not match');
 			return FALSE;
 		}
 
@@ -219,6 +224,7 @@ class MY_Session extends CI_Session {
 		if ($this->sess_match_useragent == TRUE AND trim($session['user_agent']) != trim(substr($this->CI->input->user_agent(), 0, 50)))
 		{
 			$this->sess_destroy();
+                                                log_message('debug','session user agent does not match');
 			return FALSE;
 		}
 
@@ -229,7 +235,7 @@ class MY_Session extends CI_Session {
                     if ($result === FALSE)
                     {
                         $this->sess_destroy();
-                        log_message('debug','Session not found');
+                        log_message('debug','Session not found in memcache');
                         return FALSE;
                     }
                    
