@@ -466,7 +466,7 @@ class MY_Session extends CI_Session {
                         // then delete old memcache key
                         $this->memcache->set('user_session_data'.$new_sessid,$cookie_data,false,$this->sess_expiration);
                         log_message('debug','new session updated');
-                        $this->memcache->delete('user_session_data'.$old_sessid);
+                        $this->memcache->delete('user_session_data'.$old_sessid,0);
                         log_message('debug','old session deleted');
                         break;
                 }
@@ -502,7 +502,7 @@ class MY_Session extends CI_Session {
                         // Delete item from memcache
                         if(isset($this->userdata['session_id']))
                         {
-                            $this->memcache->delete('user_session_data'.$this->userdata['session_id']);
+                            $this->memcache->delete('user_session_data'.$this->userdata['session_id'],0);
                             log_message('debug','session destroyed');
                         }
 
