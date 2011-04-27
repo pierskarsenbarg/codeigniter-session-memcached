@@ -125,10 +125,10 @@ class MY_Session extends CI_Session {
         // Run the Session routine. If a session doesn't exist we'll
         // create a new one.  If it does, we'll update it.
         if (!$this->sess_read()) {
-            log_message('debug', 'new session needed');
+            log_message('info','need to create session');
             $this->sess_create();
         } else {
-            log_message('debug', 'session needs updating');
+            log_message('info','do we need to update session');
             $this->sess_update();
         }
 
@@ -184,28 +184,24 @@ class MY_Session extends CI_Session {
         // Is the session data we unserialized an array with the correct format?
         if (!is_array($session) OR !isset($session['session_id']) OR !isset($session['ip_address']) OR !isset($session['user_agent']) OR !isset($session['last_activity'])) {
             $this->sess_destroy();
-            log_message('debug', 'session not valid and destroyed');
             return FALSE;
         }
 
         // Is the session current?
         if (($session['last_activity'] + $this->sess_expiration) < $this->now) {
             $this->sess_destroy();
-            log_message('debug', 'session not current');
             return FALSE;
         }
 
         // Does the IP Match?
         if ($this->sess_match_ip == TRUE AND $session['ip_address'] != $this->CI->input->ip_address()) {
             $this->sess_destroy();
-            log_message('debug', 'session IP does not match');
             return FALSE;
         }
 
         // Does the User Agent Match?
         if ($this->sess_match_useragent == TRUE AND trim($session['user_agent']) != trim(substr($this->CI->input->user_agent(), 0, 50))) {
             $this->sess_destroy();
-            log_message('debug', 'session user agent does not match');
             return FALSE;
         }
 
@@ -214,7 +210,7 @@ class MY_Session extends CI_Session {
             $result = $this->memcache->get("user_session_data" . $session['session_id']);
             if ($result === FALSE) {
                 $this->sess_destroy();
-                log_message('debug', 'Session not found in memcache');
+                log_message('debug', 'Session not found');
                 return FALSE;
             }
 
@@ -382,9 +378,11 @@ class MY_Session extends CI_Session {
     function sess_update() {
         // We only update the session every five minutes by default
         if (($this->userdata['last_activity'] + $this->sess_time_to_update) >= $this->now) {
+            log_message('info','not enough time before update');
             return;
         }
-
+        log_message('info','defo need to update session');
+        
         // Save the old session id so we know which record to
         // update in the database if we need it
         $old_sessid = $this->userdata['session_id'];
@@ -392,13 +390,13 @@ class MY_Session extends CI_Session {
         while (strlen($new_sessid) < 32) {
             $new_sessid .= mt_rand(0, mt_getrandmax());
         }
-
+        
         // To make the session ID even more secure we'll combine it with the user's IP
         $new_sessid .= $this->CI->input->ip_address();
 
         // Turn it into a hash
         $new_sessid = md5(uniqid($new_sessid, TRUE));
-
+        log_message('info','session id generated');
         // Update the session data in the session data array
         $this->userdata['session_id'] = $new_sessid;
         $this->userdata['last_activity'] = $this->now;
@@ -411,21 +409,20 @@ class MY_Session extends CI_Session {
         foreach (array('session_id', 'ip_address', 'user_agent', 'last_activity') as $val) {
             $cookie_data[$val] = $this->userdata[$val];
         }
-
+        
         switch ($this->session_storage) {
             case 'database':
                 // Update the session ID and last_activity field in the DB if needed
                 // set cookie explicitly to only have our session data
                 $this->CI->db->query($this->CI->db->update_string($this->sess_table_name, array('last_activity' => $this->now, 'session_id' => $new_sessid), array('session_id' => $old_sessid)));
                 break;
-            case 'memcached':
-
-                // Update the session ID and last_activity field in memcached
-                // then delete old memcache key
-                $this->memcache->set('user_session_data' . $new_sessid, $cookie_data, false, $this->sess_expiration);
-                log_message('debug', 'new session updated');
+            case 'memcached':                
+                // Add item with new session_id and data to memcached
+                // then delete old memcache item
+                $this->memcache->add('user_session_data' . $new_sessid, $this->userdata, false, $this->sess_expiration);
+                log_message('info', 'new session added');
                 $this->memcache->delete('user_session_data' . $old_sessid, 0);
-                log_message('debug', 'old session deleted');
+                log_message('info', 'old session deleted');                
                 break;
         }
 
