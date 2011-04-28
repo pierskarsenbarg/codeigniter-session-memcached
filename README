@@ -1,5 +1,9 @@
 Codeigniter Session Memcached
 
+PLEASE NOTE THIS IS NOT PRODUCTION READY
+
+See here: http://forrst.com/posts/Looks_like_I_was_a_bit_too_eager_to_get_code_out-9h5 for more information (i.e. if you can help)
+
 An extension of the Session class to enable the use of memcached to store session information.
 
 To enable this, copy MY_Session.php to application/libraries and memcached.php to application/config.
