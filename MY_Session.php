@@ -117,6 +117,9 @@ class MY_Session extends CI_Session {
         // set to zero we'll set the expiration two years from now.
         if ($this->sess_expiration == 0) {
             $this->sess_expiration = (60 * 60 * 24 * 365 * 2);
+            // Memcache server uses unix Time when TTL is above 2592000 (1 month)
+            if ($this->session_storage == 'memcached')
+                $this->sess_expiration += time();
         }
 
         // Set the cookie name
