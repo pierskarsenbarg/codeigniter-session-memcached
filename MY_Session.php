@@ -24,7 +24,7 @@ if (!defined('BASEPATH'))
  * @subpackage	Libraries
  * @category	Sessions
  * @author		Piers Karsenbarg
- * @link		https://github.com/dennisvdvliet/codeigniter-session-memcached
+ * @link		https://github.com/killgt/codeigniter-session-memcached
  */
 class MY_Session extends CI_Session {
 
@@ -94,7 +94,7 @@ class MY_Session extends CI_Session {
                 }
                 break;
             case 'memcached':
-                $this->memcached = new Memcached();
+                $this->memcached = new Memcache();
                 foreach ($this->memcached_nodes as $node) {
                     $this->memcached->addServer($node, $this->memcached_port);
                 }
@@ -412,9 +412,23 @@ class MY_Session extends CI_Session {
         $cookie_data = NULL;
 
         $cookie_data = array();
-        foreach (array('session_id', 'ip_address', 'user_agent', 'last_activity') as $val) {
-            $cookie_data[$val] = $this->userdata[$val];
+        $mem_data = array();
+        $cookie_keys = array('session_id', 'ip_address', 'user_agent', 'last_activity');
+        foreach ($cookie_keys as $key) {
+            $cookie_data[$key] = $this->userdata[$key];
         }
+        foreach ($this->userdata as $key => $value) {
+            if (in_array($key, $cookie_keys))
+                continue;
+            $mem_data[$key] = $this->userdata[$key];
+        }
+        $save  = array(
+            'session_id' => $cookie_data['session_id'],
+            'ip_address' => $cookie_data['ip_address'],
+            'user_agent' => $cookie_data['user_agent'],
+            'last_activity' => $this->now,
+            'user_data' => $this->_serialize($mem_data)
+        );
         
         switch ($this->session_storage) {
             case 'database':
@@ -425,14 +439,15 @@ class MY_Session extends CI_Session {
             case 'memcached':                
                 // Add item with new session_id and data to memcached
                 // then delete old memcache item
-                $this->memcached->set('user_session_data' . $new_sessid, $this->userdata, $this->sess_expiration);
+                $this->memcached->set('user_session_data' . $new_sessid, $save, $this->sess_expiration);
                 log_message('info', 'MC new session added' . $this->sess_expiration);
                 $this->memcached->delete('user_session_data' . $old_sessid);
-                log_message('info', 'MC old session deleted');                
+                log_message('info', 'MC old session deleted');
+
                 break;
         }
 
-
+        unset($mem_data);
 
         // Write the cookie
         $this->_set_cookie($cookie_data);
