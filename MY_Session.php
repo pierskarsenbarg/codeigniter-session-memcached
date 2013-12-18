@@ -24,7 +24,7 @@ if (!defined('BASEPATH'))
  * @subpackage	Libraries
  * @category	Sessions
  * @author		Piers Karsenbarg
- * @link		https://github.com/pierskarsenbarg/codeigniter-session-memcached
+ * @link		https://github.com/killgt/codeigniter-session-memcached
  */
 class MY_Session extends CI_Session {
 
@@ -40,7 +40,7 @@ class MY_Session extends CI_Session {
     var $cookie_path = '';
     var $cookie_domain = '';
     var $cookie_secure = FALSE;
-    var $sess_time_to_update = 300;
+    var $sess_time_to_update = 10;
     var $encryption_key = '';
     var $flashdata_key = 'flash';
     var $time_reference = 'time';
@@ -60,11 +60,12 @@ class MY_Session extends CI_Session {
      * whenever the class is instantiated.
      */
     public function __construct($params = array()) {
+    	
         log_message('debug', "Session Class Initialized foo");
 
         // Set the super object to a local variable for use throughout the class
         $this->CI = & get_instance();
-        $this->CI->load->config('memcache');
+        $this->CI->load->config('memcached');
 
         // Set all the session preferences, which can either be set
         // manually via the $params array above or via the config file
@@ -93,9 +94,9 @@ class MY_Session extends CI_Session {
                 }
                 break;
             case 'memcached':
-                $this->memcache = new Memcache();
+                $this->memcached = new Memcache();
                 foreach ($this->memcached_nodes as $node) {
-                    $this->memcache->addServer($node, $this->memcached_port);
+                    $this->memcached->addServer($node, $this->memcached_port);
                 }
                 log_message('debug', 'memcache servers added');
                 break;
@@ -117,6 +118,9 @@ class MY_Session extends CI_Session {
         // set to zero we'll set the expiration two years from now.
         if ($this->sess_expiration == 0) {
             $this->sess_expiration = (60 * 60 * 24 * 365 * 2);
+            // Memcache server uses unix Time when TTL is above 2592000 (1 month)
+            if ($this->session_storage == 'memcached')
+                $this->sess_expiration += time();
         }
 
         // Set the cookie name
@@ -154,8 +158,8 @@ class MY_Session extends CI_Session {
      */
     function sess_read() {
         // Fetch the cookie
+        
         $session = $this->CI->input->cookie($this->sess_cookie_name);
-
         // No cookie?  Goodbye cruel world!...
         if ($session === FALSE) {
             log_message('debug', 'A session cookie was not found.');
@@ -207,7 +211,9 @@ class MY_Session extends CI_Session {
 
         // Is there a corresponding session in memcached?
         if ($this->session_storage === 'memcached') {
-            $result = $this->memcache->get("user_session_data" . $session['session_id']);
+            $result = $this->memcached->get("user_session_data" . $session['session_id']);
+            		//log_message('debug', 'MC ' .serialize($result));
+
             if ($result === FALSE) {
                 $this->sess_destroy();
                 log_message('debug', 'Session not found');
@@ -218,7 +224,7 @@ class MY_Session extends CI_Session {
             if (isset($result["user_data"]) && $result["user_data"] != '') {
                 $custom_data = $this->_unserialize($result["user_data"]);
                 if (is_array($custom_data)) {
-                    log_message('debug', 'Memcache custom data found');
+                    log_message('debug', 'Memcached custom data found');
                     foreach ($custom_data as $key => $val) {
                         $session[$key] = $val;
                     }
@@ -313,7 +319,7 @@ class MY_Session extends CI_Session {
                 $this->CI->db->update($this->sess_table_name, array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata));
                 break;
             case 'memcached':
-                $this->memcache->replace("user_session_data" . $this->userdata['session_id'], array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata), false, $this->sess_expiration);
+                $this->memcached->replace("user_session_data" . $this->userdata['session_id'], array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata), $this->sess_expiration + 3600);
                 log_message('debug', 'session written to memcache');
                 break;
         }
@@ -356,8 +362,8 @@ class MY_Session extends CI_Session {
                 $this->CI->db->query($this->CI->db->insert_string($this->sess_table_name, $this->userdata));
                 break;
             case 'memcached':
-                $this->memcache->set('user_session_data' . $this->userdata['session_id'], $this->userdata, false, $this->sess_expiration);
-                log_message('debug', 'session created in memcache');
+                $this->memcached->set('user_session_data' . $this->userdata['session_id'], $this->userdata, $this->sess_expiration);
+                log_message('debug', 'session created in memcached');
                 break;
             default:
                 break;
@@ -381,7 +387,7 @@ class MY_Session extends CI_Session {
             log_message('info','not enough time before update');
             return;
         }
-        log_message('info','defo need to update session');
+        log_message('info','MC defo need to update session');
         
         // Save the old session id so we know which record to
         // update in the database if we need it
@@ -406,9 +412,23 @@ class MY_Session extends CI_Session {
         $cookie_data = NULL;
 
         $cookie_data = array();
-        foreach (array('session_id', 'ip_address', 'user_agent', 'last_activity') as $val) {
-            $cookie_data[$val] = $this->userdata[$val];
+        $mem_data = array();
+        $cookie_keys = array('session_id', 'ip_address', 'user_agent', 'last_activity');
+        foreach ($cookie_keys as $key) {
+            $cookie_data[$key] = $this->userdata[$key];
         }
+        foreach ($this->userdata as $key => $value) {
+            if (in_array($key, $cookie_keys))
+                continue;
+            $mem_data[$key] = $this->userdata[$key];
+        }
+        $save  = array(
+            'session_id' => $cookie_data['session_id'],
+            'ip_address' => $cookie_data['ip_address'],
+            'user_agent' => $cookie_data['user_agent'],
+            'last_activity' => $this->now,
+            'user_data' => $this->_serialize($mem_data)
+        );
         
         switch ($this->session_storage) {
             case 'database':
@@ -419,14 +439,15 @@ class MY_Session extends CI_Session {
             case 'memcached':                
                 // Add item with new session_id and data to memcached
                 // then delete old memcache item
-                $this->memcache->add('user_session_data' . $new_sessid, $this->userdata, false, $this->sess_expiration);
-                log_message('info', 'new session added');
-                $this->memcache->delete('user_session_data' . $old_sessid, 0);
-                log_message('info', 'old session deleted');                
+                $this->memcached->set('user_session_data' . $new_sessid, $save, $this->sess_expiration);
+                log_message('info', 'MC new session added' . $this->sess_expiration);
+                $this->memcached->delete('user_session_data' . $old_sessid);
+                log_message('info', 'MC old session deleted');
+
                 break;
         }
 
-
+        unset($mem_data);
 
         // Write the cookie
         $this->_set_cookie($cookie_data);
@@ -453,7 +474,7 @@ class MY_Session extends CI_Session {
             case 'memcached':
                 // Delete item from memcache
                 if (isset($this->userdata['session_id'])) {
-                    $this->memcache->delete('user_session_data' . $this->userdata['session_id'], 0);
+                    $this->memcached->delete('user_session_data' . $this->userdata['session_id']);
                     log_message('debug', 'session destroyed');
                 }
 
@@ -662,6 +683,7 @@ class MY_Session extends CI_Session {
      * @return	void
      */
     function _set_cookie($cookie_data = NULL) {
+    	//log_message('debug', 'MC name' .  $this->sess_cookie_name);
         if (is_null($cookie_data)) {
             $cookie_data = $this->userdata;
         }
