@@ -319,7 +319,7 @@ class MY_Session extends CI_Session {
                 $this->CI->db->update($this->sess_table_name, array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata));
                 break;
             case 'memcached':
-                $this->memcached->replace("user_session_data" . $this->userdata['session_id'], array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata), $this->sess_expiration + 3600);
+                $this->memcached->replace("user_session_data" . $this->userdata['session_id'], array('last_activity' => $this->userdata['last_activity'], 'user_data' => $custom_userdata), MEMCACHE_COMPRESSED, $this->sess_expiration + 3600);
                 log_message('debug', 'session written to memcache');
                 break;
         }
@@ -362,7 +362,7 @@ class MY_Session extends CI_Session {
                 $this->CI->db->query($this->CI->db->insert_string($this->sess_table_name, $this->userdata));
                 break;
             case 'memcached':
-                $this->memcached->set('user_session_data' . $this->userdata['session_id'], $this->userdata, $this->sess_expiration);
+                $this->memcached->set('user_session_data' . $this->userdata['session_id'], $this->userdata, MEMCACHE_COMPRESSED, $this->sess_expiration);
                 log_message('debug', 'session created in memcached');
                 break;
             default:
