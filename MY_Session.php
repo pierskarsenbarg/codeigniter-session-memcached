@@ -24,7 +24,7 @@ if (!defined('BASEPATH'))
  * @subpackage	Libraries
  * @category	Sessions
  * @author		Piers Karsenbarg
- * @link		https://github.com/killgt/codeigniter-session-memcached
+ * @link		https://github.com/pierskarsenbarg/codeigniter-session-memcached
  */
 class MY_Session extends CI_Session {
 
